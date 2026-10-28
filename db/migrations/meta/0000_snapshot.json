@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "mysql",
-  "id": "f5a4e9da-7fb1-44a0-8937-5e638ae3e6ad",
+  "id": "c217fc3f-c456-486f-977f-524437f03bf3",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "categorias": {
@@ -369,7 +369,7 @@
         },
         "temperatura_c": {
           "name": "temperatura_c",
-          "type": "varchar(20)",
+          "type": "varchar(60)",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false

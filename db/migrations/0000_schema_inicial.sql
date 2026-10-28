@@ -58,7 +58,7 @@ CREATE TABLE `metodos_preparo` (
 	`tempo_min` smallint NOT NULL,
 	`proporcao` varchar(40) NOT NULL,
 	`moagem` varchar(60) NOT NULL,
-	`temperatura_c` varchar(20) NOT NULL,
+	`temperatura_c` varchar(60) NOT NULL,
 	`imagem` varchar(255) NOT NULL,
 	`credito_imagem` varchar(160),
 	CONSTRAINT `metodos_preparo_id` PRIMARY KEY(`id`),

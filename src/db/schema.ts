@@ -72,7 +72,7 @@ export const metodosPreparo = mysqlTable("metodos_preparo", {
   tempoMin: smallint("tempo_min").notNull(),
   proporcao: varchar("proporcao", { length: 40 }).notNull(),
   moagem: varchar("moagem", { length: 60 }).notNull(),
-  temperaturaC: varchar("temperatura_c", { length: 20 }).notNull(),
+  temperaturaC: varchar("temperatura_c", { length: 60 }).notNull(),
   imagem: varchar("imagem", { length: 255 }).notNull(),
   creditoImagem: varchar("credito_imagem", { length: 160 }),
 });
