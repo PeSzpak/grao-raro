@@ -151,7 +151,8 @@ Os valores ficam em centavos, `INT`. O schema fica em `src/db/schema.ts`, e as m
 categorias        (id, slug, nome)                           -- cafes, equipamentos, acessorios
 produtos          (id, slug UNIQUE, categoria_id, nome, subtitulo, descricao, origem, produtor,
                    processo, altitude_m, notas_sensoriais JSON, imagem, preco_centavos,
-                   pagamento_real_liberado BOOL, ativo)
+                   pagamento_real_liberado BOOL, estoque INT UNSIGNED, ativo)
+reservas          (pedido_id, produto_id, quantidade, expira_em, liberada_em NULL)
 metodos_preparo   (id, slug, nome, resumo, dificuldade, tempo_min, proporcao, moagem,
                    temperatura_c)                            -- o texto longo fica em MDX
 metodo_produtos   (metodo_id, produto_id)                    -- "o que você precisa" pra cada método
@@ -163,6 +164,38 @@ pagamentos        (id UUID, pedido_id, provedor, id_externo UNIQUE, metodo, stat
 eventos_pagamento (id_evento UNIQUE, provedor, tipo, payload_sanitizado JSON, recebido_em)
 historico_status  (pedido_id, de, para, origem, em)
 ```
+
+## 6.1 Estoque e pagamento duplicado, sem Redis
+
+**Estoque esgotado.** O estoque é baixado dentro da mesma transação que cria o pedido:
+
+```sql
+UPDATE produtos SET estoque = estoque - ? WHERE id = ? AND estoque >= ?
+```
+
+Se a atualização afetar 0 linhas, o item acabou. A transação inteira volta, e a API responde **409** com o item que faltou.
+
+- **Disputa pela última unidade.** O MySQL trava a linha durante o `UPDATE`. Se duas pessoas tentarem comprar a última unidade ao mesmo tempo, uma leva e a outra recebe o 409.
+- **Reserva com prazo.** O pedido guarda uma reserva que expira junto com o Pix, em 30 minutos.
+- **Devolução ao estoque.** A reserva volta ao estoque quando:
+  - o webhook avisa `OVERDUE` ou cobrança removida;
+  - o cartão é recusado;
+  - um Vercel Cron, a cada 10 minutos, encontra uma reserva vencida.
+
+  A devolução marca `liberada_em`, então nunca devolve duas vezes.
+- **Teste.** Dez pedidos simultâneos pela última unidade resultam em exatamente um pedido criado e nove 409.
+
+**Pagamento duplicado.** Três travas no banco:
+
+| Situação | Trava |
+|---|---|
+| Dois cliques em "Pagar" | Uma coluna gerada `pendente_de = IF(status='pendente', pedido_id, NULL)` com `UNIQUE`, porque o MySQL não tem índice parcial. Um pedido não pode ter duas cobranças pendentes. O segundo clique recebe a mesma cobrança. |
+| Webhook repetido | `UNIQUE (id_evento)` em `eventos_pagamento` |
+| Pedido já pago | A máquina de estados não sai de `aprovado` |
+
+**Por que não usar Redis.** O Redis seria uma segunda fonte de verdade pro estoque. Ela teria que ser sincronizada com o MySQL, e qualquer falha entre os dois vende um item que não existe. As travas do MySQL resolvem os dois problemas numa transação só, que é o que a banca vai querer ver.
+
+O Redis só valeria a pena com milhares de compras simultâneas no mesmo item, como em pré-venda de ingresso. Não é o caso de uma loja de cafés raros.
 
 ## 7. Catálogo e conteúdo
 
