@@ -3,6 +3,7 @@ import { eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { clientes, historicoStatus, itensPedido, pedidos, produtos, reservas } from "@/db/schema";
 import { somenteDigitos } from "@/domain/cpf";
+import { ErroDeNegocio } from "@/domain/erros";
 
 export const MINUTOS_RESERVA = 30;
 
@@ -10,15 +11,15 @@ export type ItemCarrinho = { slug: string; quantidade: number };
 export type DadosComprador = { nome: string; email: string; cpf: string };
 export type GatewayClientes = { criarCliente(dados: DadosComprador): Promise<string> };
 
-export class ProdutoInexistente extends Error {
+export class ProdutoInexistente extends ErroDeNegocio {
   constructor(readonly slug: string) {
-    super(`Produto não encontrado: ${slug}`);
+    super(404, `Produto não encontrado: ${slug}`);
   }
 }
 
-export class EstoqueInsuficiente extends Error {
+export class EstoqueInsuficiente extends ErroDeNegocio {
   constructor(readonly slug: string) {
-    super(`Estoque insuficiente: ${slug}`);
+    super(409, `Estoque insuficiente: ${slug}`);
   }
 }
 

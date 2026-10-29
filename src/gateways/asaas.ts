@@ -145,7 +145,7 @@ export const asaas = {
     return chamar(`/payments/${id}`, cobrancaSchema);
   },
 
-  async buscarPorReferencia(referencia: string) {
+  async buscarPorReferencia(referencia: string): Promise<CobrancaAsaas | null> {
     const lista = await chamar(
       `/payments?externalReference=${encodeURIComponent(referencia)}&limit=1`,
       z.object({ data: z.array(cobrancaSchema) }),

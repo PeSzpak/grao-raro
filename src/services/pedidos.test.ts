@@ -57,7 +57,8 @@ describe("criarPedido", () => {
     expect(reserva.quantidade).toBe(2);
     const minutos = (reserva.expiraEm.getTime() - Date.now()) / 60_000;
     expect(minutos).toBeGreaterThan(29);
-    expect(minutos).toBeLessThanOrEqual(30);
+    // DATETIME arredonda para o segundo mais próximo.
+    expect(minutos).toBeLessThanOrEqual(30 + 1 / 60);
     const historico = await db.select().from(historicoStatus).where(eq(historicoStatus.pedidoId, id));
     expect(historico).toMatchObject([{ de: null, para: "pendente", origem: "criacao" }]);
   });
