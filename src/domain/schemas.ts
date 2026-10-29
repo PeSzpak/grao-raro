@@ -1,9 +1,22 @@
 import { z } from "zod";
 import { cpfValido, somenteDigitos } from "./cpf";
 
+z.config(z.locales.ptBR());
+z.config({ customError: (problema) => (problema.input === undefined ? "Campo obrigatório" : undefined) });
+
+const nome = z.string().trim().min(3, "Informe o nome completo").max(160);
+
 const cpf = z.string().refine(cpfValido, "CPF inválido");
 const digitos = (min: number, max: number, mensagem: string) =>
   z.string().refine((v) => somenteDigitos(v).length >= min && somenteDigitos(v).length <= max, mensagem);
+
+export const filtroProdutosSchema = z.object({
+  categoria: z.enum(["cafes", "equipamentos", "acessorios"]).optional(),
+  origem: z.string().max(120).optional(),
+  processo: z.string().max(80).optional(),
+});
+
+export const loginAdminSchema = z.object({ senha: z.string().min(1).max(200) });
 
 export const itensSchema = z
   .array(z.object({ slug: z.string().min(1).max(120), quantidade: z.number().int().min(1).max(10) }))
@@ -13,8 +26,8 @@ export const itensSchema = z
 export const cotacaoSchema = z.object({ itens: itensSchema });
 
 export const pedidoSchema = z.object({
-  nome: z.string().trim().min(3).max(160),
-  email: z.email().max(200),
+  nome,
+  email: z.email("E-mail inválido").max(200),
   cpf,
   itens: itensSchema,
   aceiteAcademico: z.literal(true, "Confirme que entende que este é um projeto acadêmico"),
@@ -27,15 +40,15 @@ export const pagamentoSchema = z.discriminatedUnion("metodo", [
     metodo: z.literal("credito"),
     parcelas: z.number().int().min(1).max(21),
     cartao: z.object({
-      nome: z.string().trim().min(3).max(100),
+      nome: z.string().trim().min(3, "Informe o nome impresso no cartão").max(100),
       numero: digitos(13, 19, "Número do cartão inválido"),
       mes: z.string().regex(/^(0[1-9]|1[0-2])$/, "Mês inválido"),
       ano: z.string().regex(/^\d{4}$/, "Ano inválido"),
       cvv: z.string().regex(/^\d{3,4}$/, "CVV inválido"),
     }),
     titular: z.object({
-      nome: z.string().trim().min(3).max(160),
-      email: z.email(),
+      nome,
+      email: z.email("E-mail inválido"),
       cpf,
       cep: digitos(8, 8, "CEP inválido"),
       numeroEndereco: z.string().trim().min(1).max(10),
