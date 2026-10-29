@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, eq, isNull, lt, min, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, lt, min, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { clientes, historicoStatus, itensPedido, pagamentos, pedidos, produtos, reservas } from "@/db/schema";
 import { ErroDeNegocio } from "@/domain/erros";
@@ -120,6 +120,23 @@ export async function lerPagamento(id: string) {
   };
 }
 
+// O pagamento que vale para o pedido: o pendente ou o que decidiu o pedido, senão a última tentativa.
+export async function pagamentoAtual(pedidoId: string) {
+  const [p] = await db
+    .select({ id: pagamentos.id })
+    .from(pagamentos)
+    .where(eq(pagamentos.pedidoId, pedidoId))
+    .orderBy(desc(sql`${pagamentos.status} IN ('pendente', 'aprovado', 'estornado', 'contestado')`), desc(pagamentos.criadoEm))
+    .limit(1);
+  return p ? lerPagamento(p.id) : null;
+}
+
+// Reserva do webhook: se o pedido ainda está pendente, pergunta ao Asaas.
+export async function atualizarPeloAsaas(pedidoId: string, gateway: GatewayPagamentos) {
+  const [pendente] = await db.select().from(pagamentos).where(eq(pagamentos.pendenteDe, pedidoId));
+  if (pendente?.idExterno) await sincronizar(pendente.idExterno, "consulta", gateway);
+}
+
 export async function iniciarPagamento(pedidoId: string, dados: DadosPagamento, gateway: GatewayPagamentos) {
   let erroTemporario: ErroAsaas | null = null;
 
@@ -181,6 +198,8 @@ export async function iniciarPagamento(pedidoId: string, dados: DadosPagamento, 
 }
 
 export async function sincronizar(idExterno: string, origem: Origem, gateway: GatewayPagamentos) {
+  const [nossa] = await db.select({ id: pagamentos.id }).from(pagamentos).where(eq(pagamentos.idExterno, idExterno));
+  if (!nossa) return;
   const cobranca = await gateway.consultar(idExterno);
   await db.transaction(async (tx) => {
     const [pagamento] = await tx.select().from(pagamentos).where(eq(pagamentos.idExterno, idExterno)).for("update");

@@ -87,3 +87,30 @@ export async function criarPedido(dados: DadosComprador & { itens: ItemCarrinho[
 
   return { id, totalCentavos: cotacao.totalCentavos, expiraEm };
 }
+
+export async function buscarPedido(id: string) {
+  const [pedido] = await db
+    .select({
+      id: pedidos.id,
+      status: pedidos.status,
+      nome: pedidos.nome,
+      totalCentavos: pedidos.totalCentavos,
+      criadoEm: pedidos.criadoEm,
+    })
+    .from(pedidos)
+    .where(eq(pedidos.id, id));
+  if (!pedido) return null;
+  const itens = await db
+    .select({
+      slug: produtos.slug,
+      nome: produtos.nome,
+      imagem: produtos.imagem,
+      quantidade: itensPedido.quantidade,
+      precoUnitarioCentavos: itensPedido.precoUnitarioCentavos,
+    })
+    .from(itensPedido)
+    .innerJoin(produtos, eq(produtos.id, itensPedido.produtoId))
+    .where(eq(itensPedido.pedidoId, id));
+  const [reserva] = await db.select({ expiraEm: reservas.expiraEm }).from(reservas).where(eq(reservas.pedidoId, id)).limit(1);
+  return { ...pedido, itens, expiraEm: reserva?.expiraEm ?? null };
+}
