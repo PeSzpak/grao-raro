@@ -1,8 +1,9 @@
 import { createHmac, randomUUID } from "node:crypto";
-import { eq, inArray, sql } from "drizzle-orm";
+import { desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { clientes, historicoStatus, itensPedido, pedidos, produtos, reservas } from "@/db/schema";
 import { somenteDigitos } from "@/domain/cpf";
+import { pagamentoAtual } from "./pagamentos";
 import { ErroDeNegocio } from "@/domain/erros";
 
 export const MINUTOS_RESERVA = 30;
@@ -113,4 +114,31 @@ export async function buscarPedido(id: string) {
     .where(eq(itensPedido.pedidoId, id));
   const [reserva] = await db.select({ expiraEm: reservas.expiraEm }).from(reservas).where(eq(reservas.pedidoId, id)).limit(1);
   return { ...pedido, itens, expiraEm: reserva?.expiraEm ?? null };
+}
+
+// shortcut: uma consulta de pagamento por pedido, ok para os 50 mais recentes; paginar se o painel crescer.
+export async function listarPedidos() {
+  const lista = await db
+    .select({
+      id: pedidos.id,
+      status: pedidos.status,
+      nome: pedidos.nome,
+      email: pedidos.email,
+      totalCentavos: pedidos.totalCentavos,
+      criadoEm: pedidos.criadoEm,
+    })
+    .from(pedidos)
+    .orderBy(desc(pedidos.criadoEm))
+    .limit(50);
+  return Promise.all(
+    lista.map(async (p) => ({
+      ...p,
+      pagamento: await pagamentoAtual(p.id),
+      historico: await db
+        .select({ de: historicoStatus.de, para: historicoStatus.para, origem: historicoStatus.origem, em: historicoStatus.em })
+        .from(historicoStatus)
+        .where(eq(historicoStatus.pedidoId, p.id))
+        .orderBy(historicoStatus.id),
+    })),
+  );
 }
