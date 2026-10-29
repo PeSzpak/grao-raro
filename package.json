@@ -11,7 +11,9 @@
     "db:migrate": "drizzle-kit migrate",
     "seed": "tsx scripts/seed.ts",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "postman": "tsx scripts/postman.ts",
+    "test:postman": "npx --yes newman@6.2.1 run postman/grao-raro.postman_collection.json -e postman/local.postman_environment.json"
   },
   "dependencies": {
     "@vercel/functions": "^3.10.4",

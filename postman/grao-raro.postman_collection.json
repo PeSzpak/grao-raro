@@ -1,0 +1,881 @@
+{
+  "info": {
+    "name": "Grão Raro",
+    "description": "Testes da API do checkout. Rode a coleção inteira, na ordem. A requisição de Pix cria uma cobrança real na conta de produção do Asaas, que expira sozinha em 30 minutos sem cobrar nada. As requisições de admin só rodam se a variável adminSenha estiver preenchida no ambiente.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "pedidoId",
+      "value": ""
+    },
+    {
+      "key": "pedidoBloqueadoId",
+      "value": ""
+    },
+    {
+      "key": "pagamentoId",
+      "value": ""
+    },
+    {
+      "key": "precoAmostra",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Catálogo",
+      "item": [
+        {
+          "name": "Saúde do banco",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"responde JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"banco ok\", () => pm.expect(pm.response.json().banco).to.eql(\"ok\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/health"
+          }
+        },
+        {
+          "name": "Listar produtos",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"responde JSON\", () => pm.response.to.be.json);",
+                  "const produtos = pm.response.json();",
+                  "pm.test(\"tem cafés, equipamentos e acessórios\", () => pm.expect(new Set(produtos.map((p) => p.categoria))).to.have.all.keys(\"cafes\", \"equipamentos\", \"acessorios\"));",
+                  "pm.test(\"a amostra é a única com pagamento real\", () => pm.expect(produtos.filter((p) => p.pagamentoRealLiberado).map((p) => p.slug)).to.eql([\"amostra-degustacao\"]));",
+                  "pm.test(\"preço em centavos inteiros\", () => produtos.forEach((p) => pm.expect(Number.isInteger(p.precoCentavos)).to.be.true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/produtos"
+          }
+        },
+        {
+          "name": "Filtrar só cafés",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"responde JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"só cafés\", () => pm.response.json().forEach((p) => pm.expect(p.categoria).to.eql(\"cafes\")));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/produtos?categoria=cafes"
+          }
+        },
+        {
+          "name": "Filtro com categoria inválida",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"responde JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"aponta o campo\", () => pm.expect(pm.response.json().detalhes).to.have.property(\"categoria\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/produtos?categoria=bebidas"
+          }
+        },
+        {
+          "name": "Detalhe da amostra",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"responde JSON\", () => pm.response.to.be.json);",
+                  "const amostra = pm.response.json();",
+                  "pm.test(\"custa R$ 5,00\", () => pm.expect(amostra.precoCentavos).to.eql(500));",
+                  "pm.collectionVariables.set(\"precoAmostra\", amostra.precoCentavos);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/produtos/amostra-degustacao"
+          }
+        },
+        {
+          "name": "Produto que não existe",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"responde JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"mensagem de erro\", () => pm.expect(pm.response.json().erro).to.be.a(\"string\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/produtos/cafe-que-nao-existe"
+          }
+        },
+        {
+          "name": "Métodos de preparo",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"responde JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"oito métodos\", () => pm.expect(pm.response.json()).to.have.lengthOf(8));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/metodos"
+          }
+        },
+        {
+          "name": "V60 e o kit para fazer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"responde JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"tem kit\", () => pm.expect(pm.response.json().kit).to.be.an(\"array\").that.is.not.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/metodos/v60"
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Checkout",
+      "item": [
+        {
+          "name": "Cotação do carrinho",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"responde JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"total calculado no banco\", () => pm.expect(pm.response.json().totalCentavos).to.eql(2 * pm.collectionVariables.get(\"precoAmostra\")));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/carrinho/cotacao",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"itens\": [\n    {\n      \"slug\": \"amostra-degustacao\",\n      \"quantidade\": 2\n    }\n  ]\n}"
+            }
+          }
+        },
+        {
+          "name": "Criar pedido com preço adulterado",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"responde JSON\", () => pm.response.to.be.json);",
+                  "const criado = pm.response.json();",
+                  "pm.test(\"ignora o preço enviado\", () => pm.expect(criado.totalCentavos).to.eql(pm.collectionVariables.get(\"precoAmostra\")));",
+                  "pm.test(\"reserva expira em até 30 minutos\", () => pm.expect(new Date(criado.expiraEm) - Date.now()).to.be.within(25 * 60000, 31 * 60000));",
+                  "pm.test(\"Location aponta para o pedido\", () => pm.expect(pm.response.headers.get(\"Location\")).to.eql(\"/api/pedidos/\" + criado.id));",
+                  "pm.collectionVariables.set(\"pedidoId\", criado.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/pedidos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Ana Souza\",\n  \"email\": \"ana@example.com\",\n  \"cpf\": \"529.982.247-25\",\n  \"itens\": [\n    {\n      \"slug\": \"amostra-degustacao\",\n      \"quantidade\": 1,\n      \"precoCentavos\": 1\n    }\n  ],\n  \"aceiteAcademico\": true,\n  \"totalCentavos\": 1\n}"
+            }
+          }
+        },
+        {
+          "name": "Pedido com CPF inválido",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"responde JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"aponta o CPF\", () => pm.expect(pm.response.json().detalhes.cpf[0]).to.eql(\"CPF inválido\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/pedidos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Ana Souza\",\n  \"email\": \"ana@example.com\",\n  \"cpf\": \"111.111.111-11\",\n  \"itens\": [\n    {\n      \"slug\": \"amostra-degustacao\",\n      \"quantidade\": 1\n    }\n  ],\n  \"aceiteAcademico\": true\n}"
+            }
+          }
+        },
+        {
+          "name": "Pedido sem o aceite acadêmico",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"responde JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"aponta o aceite\", () => pm.expect(pm.response.json().detalhes).to.have.property(\"aceiteAcademico\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/pedidos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Ana Souza\",\n  \"email\": \"ana@example.com\",\n  \"cpf\": \"529.982.247-25\",\n  \"itens\": [\n    {\n      \"slug\": \"amostra-degustacao\",\n      \"quantidade\": 1\n    }\n  ],\n  \"aceiteAcademico\": false\n}"
+            }
+          }
+        },
+        {
+          "name": "Pedido com quantidade zero",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"responde JSON\", () => pm.response.to.be.json);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/pedidos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Ana Souza\",\n  \"email\": \"ana@example.com\",\n  \"cpf\": \"529.982.247-25\",\n  \"itens\": [\n    {\n      \"slug\": \"amostra-degustacao\",\n      \"quantidade\": 0\n    }\n  ],\n  \"aceiteAcademico\": true\n}"
+            }
+          }
+        },
+        {
+          "name": "Pedido de produto que não existe",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"responde JSON\", () => pm.response.to.be.json);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/pedidos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Ana Souza\",\n  \"email\": \"ana@example.com\",\n  \"cpf\": \"529.982.247-25\",\n  \"itens\": [\n    {\n      \"slug\": \"cafe-que-nao-existe\",\n      \"quantidade\": 1\n    }\n  ],\n  \"aceiteAcademico\": true\n}"
+            }
+          }
+        },
+        {
+          "name": "Ver o pedido",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"responde JSON\", () => pm.response.to.be.json);",
+                  "const p = pm.response.json();",
+                  "pm.test(\"pendente e sem pagamento\", () => { pm.expect(p.status).to.eql(\"pendente\"); pm.expect(p.pagamento).to.be.null; });",
+                  "pm.test(\"um item, a amostra\", () => pm.expect(p.itens.map((i) => i.slug)).to.eql([\"amostra-degustacao\"]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/pedidos/{{pedidoId}}"
+          }
+        },
+        {
+          "name": "Pagar com Pix (cobrança real no Asaas)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"responde JSON\", () => pm.response.to.be.json);",
+                  "const pg = pm.response.json();",
+                  "pm.test(\"Pix pendente\", () => { pm.expect(pg.metodo).to.eql(\"pix\"); pm.expect(pg.status).to.eql(\"pendente\"); });",
+                  "pm.test(\"copia e cola no padrão do Banco Central\", () => pm.expect(pg.pix.payload).to.match(/^000201/));",
+                  "pm.test(\"QR Code em PNG\", () => pm.expect(pg.pix.imagem).to.match(/^iVBORw0KGgo/));",
+                  "pm.collectionVariables.set(\"pagamentoId\", pg.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/pedidos/{{pedidoId}}/pagamentos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"metodo\": \"pix\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Clicar em pagar de novo devolve a mesma cobrança",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"responde JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"mesmo pagamento\", () => pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get(\"pagamentoId\")));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/pedidos/{{pedidoId}}/pagamentos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"metodo\": \"pix\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Cartão sem os dados",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"responde JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"pede cartão e titular\", () => pm.expect(pm.response.json().detalhes).to.include.keys(\"cartao\", \"titular\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/pedidos/{{pedidoId}}/pagamentos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"metodo\": \"credito\",\n  \"parcelas\": 1\n}"
+            }
+          }
+        },
+        {
+          "name": "Método de pagamento que não existe",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"responde JSON\", () => pm.response.to.be.json);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/pedidos/{{pedidoId}}/pagamentos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"metodo\": \"boleto\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Status do pedido",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"responde JSON\", () => pm.response.to.be.json);",
+                  "const s = pm.response.json();",
+                  "pm.test(\"aguardando o Pix\", () => { pm.expect(s.status).to.eql(\"pendente\"); pm.expect(s.pagamento.metodo).to.eql(\"pix\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/pedidos/{{pedidoId}}/status"
+          }
+        },
+        {
+          "name": "Criar pedido de um café caro",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"responde JSON\", () => pm.response.to.be.json);",
+                  "pm.collectionVariables.set(\"pedidoBloqueadoId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/pedidos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Ana Souza\",\n  \"email\": \"ana@example.com\",\n  \"cpf\": \"529.982.247-25\",\n  \"itens\": [\n    {\n      \"slug\": \"chemex\",\n      \"quantidade\": 1\n    }\n  ],\n  \"aceiteAcademico\": true\n}"
+            }
+          }
+        },
+        {
+          "name": "Pagamento real bloqueado fora da amostra",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"responde JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"explica o motivo\", () => pm.expect(pm.response.json().erro).to.include(\"Amostra\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/pedidos/{{pedidoBloqueadoId}}/pagamentos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"metodo\": \"pix\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Pedido que não existe",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"responde JSON\", () => pm.response.to.be.json);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/pedidos/00000000-0000-0000-0000-000000000000"
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Asaas",
+      "item": [
+        {
+          "name": "Webhook sem o token do Asaas",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"responde JSON\", () => pm.response.to.be.json);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/webhooks/asaas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"evt_teste\",\n  \"event\": \"PAYMENT_RECEIVED\",\n  \"payment\": {\n    \"id\": \"pay_teste\"\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "Webhook com token errado",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"responde JSON\", () => pm.response.to.be.json);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "asaas-access-token",
+                "value": "token-errado"
+              }
+            ],
+            "url": "{{baseUrl}}/api/webhooks/asaas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"evt_teste\",\n  \"event\": \"PAYMENT_RECEIVED\",\n  \"payment\": {\n    \"id\": \"pay_teste\"\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "Cron sem o segredo",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"responde JSON\", () => pm.response.to.be.json);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/cron/expirar"
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Admin",
+      "item": [
+        {
+          "name": "Lista de pedidos sem sessão",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"responde JSON\", () => pm.response.to.be.json);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/admin/pedidos"
+          }
+        },
+        {
+          "name": "Login com senha errada",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"responde JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"não abre sessão\", () => pm.expect(pm.response.headers.has(\"Set-Cookie\")).to.be.false);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/sessao",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"senha\": \"senha-errada\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Login de admin",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.environment.get(\"adminSenha\")) pm.execution.skipRequest();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"responde JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"cookie de sessão\", () => pm.expect(pm.cookies.has(\"admin\")).to.be.true);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/sessao",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"senha\": \"{{adminSenha}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Lista de pedidos",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.environment.get(\"adminSenha\")) pm.execution.skipRequest();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"responde JSON\", () => pm.response.to.be.json);",
+                  "const pedido = pm.response.json().find((p) => p.id === pm.collectionVariables.get(\"pedidoId\"));",
+                  "pm.test(\"mostra o pedido criado com o histórico\", () => pm.expect(pedido.historico[0].origem).to.eql(\"criacao\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/admin/pedidos"
+          }
+        },
+        {
+          "name": "Estornar pedido que não foi pago",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.environment.get(\"adminSenha\")) pm.execution.skipRequest();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"responde JSON\", () => pm.response.to.be.json);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/admin/pedidos/{{pedidoId}}/estorno"
+          }
+        }
+      ]
+    }
+  ]
+}
