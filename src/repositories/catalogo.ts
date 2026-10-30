@@ -1,6 +1,7 @@
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { categorias, metodoProdutos, metodosPreparo, produtos } from "@/db/schema";
+import { pagamentoReal } from "@/lib/liberacao";
 
 export type FiltroProdutos = { categoria?: string; origem?: string; processo?: string };
 
@@ -28,8 +29,10 @@ const colunasProduto = {
 
 export type Produto = Awaited<ReturnType<typeof listarProdutos>>[number];
 
+const comLiberacao = <T extends { pagamentoRealLiberado: boolean }>(p: T) => ({ ...p, pagamentoRealLiberado: pagamentoReal(p.pagamentoRealLiberado) });
+
 export async function listarProdutos(filtro: FiltroProdutos = {}) {
-  return db
+  const lista = await db
     .select(colunasProduto)
     .from(produtos)
     .innerJoin(categorias, eq(categorias.id, produtos.categoriaId))
@@ -42,6 +45,7 @@ export async function listarProdutos(filtro: FiltroProdutos = {}) {
       ),
     )
     .orderBy(asc(categorias.id), asc(produtos.id));
+  return lista.map(comLiberacao);
 }
 
 export async function buscarProduto(slug: string) {
@@ -57,7 +61,7 @@ export async function buscarProduto(slug: string) {
     .from(metodoProdutos)
     .innerJoin(metodosPreparo, eq(metodosPreparo.id, metodoProdutos.metodoId))
     .where(eq(metodoProdutos.produtoId, produto.id));
-  return { ...produto, metodos };
+  return { ...comLiberacao(produto), metodos };
 }
 
 export async function listarMetodos() {

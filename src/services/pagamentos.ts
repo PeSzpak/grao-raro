@@ -4,6 +4,7 @@ import { db } from "@/db/client";
 import { clientes, historicoStatus, itensPedido, pagamentos, pedidos, produtos, reservas } from "@/db/schema";
 import { ErroDeNegocio } from "@/domain/erros";
 import { statusDoAsaas, transicionar, type StatusPedido } from "@/domain/status";
+import { tudoLiberado } from "@/lib/liberacao";
 import { ErroAsaas, type Cartao, type CobrancaAsaas, type GatewayPagamentos, type Titular } from "@/gateways/asaas";
 
 type Transacao = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -156,7 +157,7 @@ export async function iniciarPagamento(pedidoId: string, dados: DadosPagamento, 
       .from(itensPedido)
       .innerJoin(produtos, eq(produtos.id, itensPedido.produtoId))
       .where(and(eq(itensPedido.pedidoId, pedidoId), eq(produtos.pagamentoRealLiberado, false)));
-    if (Number(bloqueados) > 0 && process.env.ALLOW_REAL_CHECKOUT_ALL !== "true") {
+    if (Number(bloqueados) > 0 && !tudoLiberado()) {
       throw new ErroDeNegocio(403, "Neste projeto acadêmico só a Amostra de degustação pode ser paga de verdade");
     }
 

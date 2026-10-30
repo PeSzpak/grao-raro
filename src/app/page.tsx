@@ -8,6 +8,7 @@ import { Cabecalho } from "@/components/cabecalho";
 import { CurvasDeNivel, Selo, XicaraComVapor } from "@/components/marca";
 import { VitrineAbas } from "@/components/vitrine-abas";
 import { formatarBRL } from "@/domain/dinheiro";
+import { tudoLiberado } from "@/lib/liberacao";
 import {
   foto,
   metodosDaVitrine,
@@ -240,9 +241,9 @@ async function Conteudo() {
           Provar por cinco reais?
         </h2>
         <p className="suave" style={{ maxWidth: "50ch" }}>
-          A amostra é paga de verdade pelo Asaas, no Pix ou no cartão, e o valor
-          é estornado depois. Os outros produtos vão até a tela de pagamento,
-          mas só a amostra pode ser cobrada.
+          {tudoLiberado()
+            ? "O pagamento é real, pelo Asaas, no Pix ou no cartão, e o valor é estornado depois. A amostra é o jeito mais barato de testar."
+            : "A amostra é paga de verdade pelo Asaas, no Pix ou no cartão, e o valor é estornado depois. Os outros produtos vão até a tela de pagamento, mas só a amostra pode ser cobrada."}
         </p>
         <div className="pergunta-botoes">
           <Link className="botao" href="/produto/amostra-degustacao">

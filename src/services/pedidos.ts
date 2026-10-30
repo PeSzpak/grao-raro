@@ -3,6 +3,7 @@ import { desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { clientes, historicoStatus, itensPedido, pedidos, produtos, reservas } from "@/db/schema";
 import { somenteDigitos } from "@/domain/cpf";
+import { pagamentoReal } from "@/lib/liberacao";
 import { pagamentoAtual } from "./pagamentos";
 import { ErroDeNegocio } from "@/domain/erros";
 
@@ -43,7 +44,7 @@ export async function cotar(itens: ItemCarrinho[]) {
   const linhas = [...quantidades].map(([slug, quantidade]) => {
     const p = porSlug.get(slug);
     if (!p) throw new ProdutoInexistente(slug);
-    return { ...p, quantidade, subtotalCentavos: p.precoCentavos * quantidade };
+    return { ...p, pagamentoRealLiberado: pagamentoReal(p.pagamentoRealLiberado), quantidade, subtotalCentavos: p.precoCentavos * quantidade };
   });
   return { itens: linhas, totalCentavos: linhas.reduce((t, l) => t + l.subtotalCentavos, 0) };
 }

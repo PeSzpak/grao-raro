@@ -36,7 +36,7 @@ const documento = {
     title: "Grão Raro",
     version: "1.0.0",
     description:
-      "API do checkout da Grão Raro, loja de cafés raros. Os pagamentos passam pela conta de produção do Asaas, então um Pix gerado aqui é real. Só a Amostra de degustação (R$ 5,00) pode ser paga de verdade, e o valor é estornado pelo painel administrativo. Projeto acadêmico do Senac: nenhum pedido é enviado.",
+      "API do checkout da Grão Raro, loja de cafés raros. Os pagamentos passam pela conta de produção do Asaas, então um Pix gerado aqui é real. Por padrão só a Amostra de degustação (R$ 5,00) pode ser paga de verdade; a variável ALLOW_REAL_CHECKOUT_ALL libera o catálogo inteiro. Todo valor recebido é estornado pelo painel administrativo. Projeto acadêmico do Senac: nenhum pedido é enviado.",
   },
   servers: [{ url: "/", description: "Este mesmo site" }],
   security: [],

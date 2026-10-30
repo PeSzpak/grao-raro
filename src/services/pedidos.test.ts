@@ -40,6 +40,16 @@ describe("cotar", () => {
     expect(cotacao.totalCentavos).toBe(p.precoCentavos * 3);
   });
 
+  it("marca todos os itens como pagáveis quando ALLOW_REAL_CHECKOUT_ALL está ligada", async () => {
+    expect((await cotar([{ slug: SLUG, quantidade: 1 }])).itens[0].pagamentoRealLiberado).toBe(false);
+    process.env.ALLOW_REAL_CHECKOUT_ALL = "true";
+    try {
+      expect((await cotar([{ slug: SLUG, quantidade: 1 }])).itens[0].pagamentoRealLiberado).toBe(true);
+    } finally {
+      delete process.env.ALLOW_REAL_CHECKOUT_ALL;
+    }
+  });
+
   it("recusa produto que não existe", async () => {
     await expect(cotar([{ slug: "nao-existe", quantidade: 1 }])).rejects.toBeInstanceOf(ProdutoInexistente);
   });
