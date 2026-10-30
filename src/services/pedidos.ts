@@ -29,7 +29,13 @@ export async function cotar(itens: ItemCarrinho[]) {
   for (const { slug, quantidade } of itens) quantidades.set(slug, (quantidades.get(slug) ?? 0) + quantidade);
 
   const encontrados = await db
-    .select({ id: produtos.id, slug: produtos.slug, nome: produtos.nome, precoCentavos: produtos.precoCentavos })
+    .select({
+      id: produtos.id,
+      slug: produtos.slug,
+      nome: produtos.nome,
+      precoCentavos: produtos.precoCentavos,
+      pagamentoRealLiberado: produtos.pagamentoRealLiberado,
+    })
     .from(produtos)
     .where(inArray(produtos.slug, [...quantidades.keys()]));
   const porSlug = new Map(encontrados.map((p) => [p.slug, p]));
