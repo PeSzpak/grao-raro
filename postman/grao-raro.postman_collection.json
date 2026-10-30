@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Grão Raro",
-    "description": "Testes da API do checkout. Rode a coleção inteira, na ordem. A requisição de Pix cria uma cobrança real na conta de produção do Asaas, que expira sozinha em 30 minutos sem cobrar nada. As requisições de admin só rodam se a variável adminSenha estiver preenchida no ambiente.",
+    "description": "Testes da API do checkout. Rode a coleção inteira, na ordem. A requisição de Pix cria uma cobrança real na conta de produção do Asaas, que expira sozinha em 30 minutos sem cobrar nada. As requisições de admin só rodam se a variável adminSenha estiver preenchida no ambiente. Deixe catalogoLiberado igual ao ALLOW_REAL_CHECKOUT_ALL do servidor: com true, o teste do bloqueio é pulado.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -59,7 +59,9 @@
                   "pm.test(\"responde JSON\", () => pm.response.to.be.json);",
                   "const produtos = pm.response.json();",
                   "pm.test(\"tem cafés, equipamentos e acessórios\", () => pm.expect(new Set(produtos.map((p) => p.categoria))).to.have.all.keys(\"cafes\", \"equipamentos\", \"acessorios\"));",
-                  "pm.test(\"a amostra é a única com pagamento real\", () => pm.expect(produtos.filter((p) => p.pagamentoRealLiberado).map((p) => p.slug)).to.eql([\"amostra-degustacao\"]));",
+                  "const liberados = produtos.filter((p) => p.pagamentoRealLiberado).map((p) => p.slug);",
+                  "if (pm.environment.get(\"catalogoLiberado\") === \"true\") pm.test(\"catálogo inteiro liberado para pagamento real\", () => pm.expect(liberados).to.have.lengthOf(produtos.length));",
+                  "else pm.test(\"a amostra é a única com pagamento real\", () => pm.expect(liberados).to.eql([\"amostra-degustacao\"]));",
                   "pm.test(\"preço em centavos inteiros\", () => produtos.forEach((p) => pm.expect(Number.isInteger(p.precoCentavos)).to.be.true));"
                 ]
               }
@@ -587,6 +589,15 @@
         {
           "name": "Pagamento real bloqueado fora da amostra",
           "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get(\"catalogoLiberado\") === \"true\") pm.execution.skipRequest();"
+                ]
+              }
+            },
             {
               "listen": "test",
               "script": {

@@ -42,7 +42,9 @@ const pastas: Record<string, Requisicao[]> = {
         ...json(200),
         `const produtos = pm.response.json();`,
         `pm.test("tem cafés, equipamentos e acessórios", () => pm.expect(new Set(produtos.map((p) => p.categoria))).to.have.all.keys("cafes", "equipamentos", "acessorios"));`,
-        `pm.test("a amostra é a única com pagamento real", () => pm.expect(produtos.filter((p) => p.pagamentoRealLiberado).map((p) => p.slug)).to.eql(["amostra-degustacao"]));`,
+        `const liberados = produtos.filter((p) => p.pagamentoRealLiberado).map((p) => p.slug);`,
+        `if (pm.environment.get("catalogoLiberado") === "true") pm.test("catálogo inteiro liberado para pagamento real", () => pm.expect(liberados).to.have.lengthOf(produtos.length));`,
+        `else pm.test("a amostra é a única com pagamento real", () => pm.expect(liberados).to.eql(["amostra-degustacao"]));`,
         `pm.test("preço em centavos inteiros", () => produtos.forEach((p) => pm.expect(Number.isInteger(p.precoCentavos)).to.be.true));`,
       ],
     },
@@ -209,6 +211,8 @@ const pastas: Record<string, Requisicao[]> = {
       metodo: "POST",
       caminho: "/api/pedidos/{{pedidoBloqueadoId}}/pagamentos",
       corpo: { metodo: "pix" },
+      // Com o catálogo liberado este pagamento passaria e geraria um Pix real de R$ 399.
+      antes: [`if (pm.environment.get("catalogoLiberado") === "true") pm.execution.skipRequest();`],
       testes: [...json(403), `pm.test("explica o motivo", () => pm.expect(pm.response.json().erro).to.include("Amostra"));`],
     },
     {
@@ -288,7 +292,7 @@ const colecao = {
   info: {
     name: "Grão Raro",
     description:
-      "Testes da API do checkout. Rode a coleção inteira, na ordem. A requisição de Pix cria uma cobrança real na conta de produção do Asaas, que expira sozinha em 30 minutos sem cobrar nada. As requisições de admin só rodam se a variável adminSenha estiver preenchida no ambiente.",
+      "Testes da API do checkout. Rode a coleção inteira, na ordem. A requisição de Pix cria uma cobrança real na conta de produção do Asaas, que expira sozinha em 30 minutos sem cobrar nada. As requisições de admin só rodam se a variável adminSenha estiver preenchida no ambiente. Deixe catalogoLiberado igual ao ALLOW_REAL_CHECKOUT_ALL do servidor: com true, o teste do bloqueio é pulado.",
     schema: "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
   },
   variable: [
@@ -323,6 +327,7 @@ const ambiente = (nome: string, baseUrl: string) => ({
   values: [
     { key: "baseUrl", value: baseUrl, enabled: true },
     { key: "adminSenha", value: "", type: "secret", enabled: true },
+    { key: "catalogoLiberado", value: "true", enabled: true },
   ],
 });
 
