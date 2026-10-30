@@ -124,6 +124,7 @@ main .qr img {
 
 /* Botões: um formato só, retângulo cheio. */
 .botao {
+  white-space: nowrap;
   display: inline-flex;
   align-items: center;
   justify-content: center;
