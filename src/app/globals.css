@@ -1067,6 +1067,8 @@ main .qr img {
 }
 .campo input,
 .campo select {
+  width: 100%;
+  min-width: 0;
   min-height: 52px;
   padding: 0 14px;
   background: var(--bg);

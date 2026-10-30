@@ -5,7 +5,7 @@ import { createContext, use, useCallback, useEffect, useMemo, useState, useSyncE
 import { formatarBRL } from "@/domain/dinheiro";
 
 type Item = { slug: string; quantidade: number };
-type Linha = { slug: string; nome: string; quantidade: number; precoCentavos: number; subtotalCentavos: number };
+type Linha = { slug: string; nome: string; quantidade: number; precoCentavos: number; subtotalCentavos: number; pagamentoRealLiberado: boolean };
 type Cotacao = { itens: Linha[]; totalCentavos: number };
 
 type ContextoSacola = {
