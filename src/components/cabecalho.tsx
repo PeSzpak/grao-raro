@@ -1,18 +1,25 @@
 import Link from "next/link";
+import { Suspense } from "react";
+import { Marca } from "./marca";
+import { MenuLinks, MenuPrincipal } from "./menu-principal";
 import { BotaoSacola } from "./sacola";
 
 export function Cabecalho() {
   return (
     <header className="cabecalho">
-      <Link href="/" className="marca">
-        Grão Raro
+      <Link href="/" aria-label="Grão Raro, página inicial">
+        <Marca />
       </Link>
-      <nav className="menu-principal" aria-label="Principal">
-        <Link href="/cafes">Cafés</Link>
-        <Link href="/equipamentos">Equipamentos</Link>
-        <Link href="/metodos">Métodos</Link>
-      </nav>
-      <BotaoSacola />
+      <Suspense fallback={<MenuLinks />}>
+        <MenuPrincipal />
+      </Suspense>
+      <div className="cabecalho-acoes">
+        <details className="menu-celular">
+          <summary>Menu</summary>
+          <MenuLinks />
+        </details>
+        <BotaoSacola />
+      </div>
     </header>
   );
 }

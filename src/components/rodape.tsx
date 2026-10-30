@@ -1,17 +1,18 @@
 import Image from "next/image";
 import Link from "next/link";
 import { foto, unsplash } from "@/lib/vitrine";
+import { Marca } from "./marca";
 
 export function Rodape() {
   const imagem = foto("metodo-v60");
   return (
     <footer className="rodape">
       <div className="rodape-foto">
-        <Image src={unsplash(imagem.url, 1400, 1600)} alt="Café passando no filtro" fill sizes="(max-width: 860px) 100vw, 50vw" />
+        <Image src={unsplash(imagem.url, 1200, 900)} alt="Café passando no filtro" fill sizes="(max-width: 860px) 100vw, 50vw" />
       </div>
       <div className="rodape-menu">
-        <Link href="/" className="marca">
-          Grão Raro
+        <Link href="/" aria-label="Grão Raro, página inicial">
+          <Marca tamanho={44} />
         </Link>
         <nav aria-label="Rodapé">
           <Link href="/cafes">Cafés</Link>
