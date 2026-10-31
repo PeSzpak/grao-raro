@@ -11,7 +11,7 @@ Por ser um projeto acadêmico, só a "Amostra de degustação" (R$ 5,00) pode se
 | Camada | Escolha |
 |---|---|
 | Aplicação | Next.js 16 (App Router), React 19, TypeScript |
-| Banco | MySQL 8.4 com Drizzle ORM. Docker no desenvolvimento, Railway em produção. |
+| Banco | MySQL 8.4 com Drizzle ORM. Docker no desenvolvimento, Aiven em produção, com SSL. |
 | Validação | Zod 4, com as mensagens em português |
 | Pagamento | API v3 do Asaas, em produção |
 | Documentação da API | OpenAPI 3.1 gerado dos schemas Zod, Swagger UI em `/docs` |
@@ -101,7 +101,9 @@ O teste do Asaas cria um cliente e uma cobrança Pix reais e apaga os dois no fi
 
 ## Produção
 
-1. Crie o MySQL no Railway e rode `npm run db:migrate` e `npm run seed` apontando o `DATABASE_URL` para ele.
+O site está em https://grao-raro.sinovaz.com, na Vercel, com o banco MySQL no Aiven.
+
+1. Crie o MySQL no Aiven. Com a Service URI no `DATABASE_URL` (ela traz `ssl-mode=REQUIRED`), rode `npm run db:testar`, `npm run db:migrate` e `npm run seed`. O certificado CA do Aiven vai em `DATABASE_CA` para a conexão conferir o servidor.
 2. Cadastre as variáveis do `.env.example` na Vercel, com `vercel env add`.
 3. Faça o deploy e cadastre o domínio do site no Asaas, em Minha Conta, aba Informações. Sem isso, o Asaas recusa a URL de retorno do débito.
 4. Crie o webhook: `npm run asaas:webhook -- https://seu-site.vercel.app`.
