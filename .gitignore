@@ -43,3 +43,6 @@ next-env.d.ts
 .taste-skill/
 graphify-out/
 .audit/
+
+# certificado do banco de produção
+ca.pem
