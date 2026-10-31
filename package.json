@@ -14,7 +14,8 @@
     "typecheck": "tsc --noEmit",
     "postman": "tsx scripts/postman.ts",
     "test:postman": "npx --yes newman@6.2.1 run postman/grao-raro.postman_collection.json -e postman/local.postman_environment.json",
-    "asaas:webhook": "tsx scripts/webhook-asaas.ts"
+    "asaas:webhook": "tsx scripts/webhook-asaas.ts",
+    "db:testar": "tsx scripts/testar-banco.ts"
   },
   "dependencies": {
     "@vercel/functions": "^3.10.4",
