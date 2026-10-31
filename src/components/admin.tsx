@@ -49,7 +49,7 @@ export function Admin() {
     const r = await fetch(`/api/admin/pedidos/${id}/estorno`, { method: "POST" });
     const corpo = await r.json();
     setConfirmando(null);
-    setMensagem(r.ok ? `Pedido ${id.slice(0, 8)} estornado.` : corpo.erro);
+    setMensagem(r.ok ? `Pedido ${id.slice(0, 8)} estornado.` : [corpo.erro, corpo.detalhes].filter(Boolean).join(": "));
     await carregar();
   }
 
