@@ -1,4 +1,4 @@
-import { readdirSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { describe, expect, it } from "vitest";
 import { especificacao } from "./openapi";
@@ -29,5 +29,10 @@ describe("OpenAPI", () => {
       rotas(join(raiz, "api")).map((a) => "/" + relative(raiz, a).replace(/\/route\.ts$/, "").replace(/\[(\w+)\]/g, "{$1}")),
     );
     for (const caminho of Object.keys(especificacao.paths)) expect(existentes, caminho).toContain(caminho);
+  });
+
+  it("docs/openapi.json está igual à especificação (rode npm run openapi)", () => {
+    const exportada = JSON.parse(readFileSync(join(process.cwd(), "docs/openapi.json"), "utf8"));
+    expect(exportada).toEqual(JSON.parse(JSON.stringify(especificacao)));
   });
 });

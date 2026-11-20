@@ -1,0 +1,1709 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Grão Raro",
+    "version": "1.0.0",
+    "description": "API do checkout da Grão Raro, loja de cafés raros. Os pagamentos passam pela conta de produção do Asaas, então um Pix gerado aqui é real. Por padrão só a Amostra de degustação (R$ 5,00) pode ser paga de verdade; a variável ALLOW_REAL_CHECKOUT_ALL libera o catálogo inteiro. Todo valor recebido é estornado pelo painel administrativo. Projeto acadêmico do Senac: nenhum pedido é enviado."
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "Este mesmo site"
+    }
+  ],
+  "security": [],
+  "tags": [
+    {
+      "name": "Catálogo",
+      "description": "Cafés, equipamentos, acessórios e métodos de preparo"
+    },
+    {
+      "name": "Checkout",
+      "description": "Do carrinho ao pagamento no Asaas"
+    },
+    {
+      "name": "Asaas",
+      "description": "Chamadas feitas pelo próprio Asaas e pelo agendador da Vercel"
+    },
+    {
+      "name": "Admin",
+      "description": "Precisa da sessão aberta em POST /api/admin/sessao"
+    }
+  ],
+  "paths": {
+    "/api/health": {
+      "get": {
+        "operationId": "getHealth",
+        "tags": [
+          "Catálogo"
+        ],
+        "summary": "Banco respondendo",
+        "responses": {
+          "200": {
+            "description": "Tudo certo",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "const": "ok"
+                    },
+                    "banco": {
+                      "const": "ok"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Banco fora do ar",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "const": "erro"
+                    },
+                    "banco": {
+                      "const": "indisponivel"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/openapi.json": {
+      "get": {
+        "operationId": "getOpenapiJson",
+        "tags": [
+          "Catálogo"
+        ],
+        "summary": "Esta especificação",
+        "responses": {
+          "200": {
+            "description": "OpenAPI 3.1",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/produtos": {
+      "get": {
+        "operationId": "getProdutos",
+        "tags": [
+          "Catálogo"
+        ],
+        "summary": "Lista os produtos",
+        "parameters": [
+          {
+            "name": "categoria",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "cafes",
+                "equipamentos",
+                "acessorios"
+              ]
+            }
+          },
+          {
+            "name": "origem",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 120
+            }
+          },
+          {
+            "name": "processo",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 80
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Produtos ativos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Produto"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Filtro inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/produtos/{slug}": {
+      "get": {
+        "operationId": "getProdutosSlug",
+        "tags": [
+          "Catálogo"
+        ],
+        "summary": "Detalhe do produto e métodos de preparo",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "amostra-degustacao"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Produto",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Produto"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "metodos": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "slug": {
+                                "type": "string"
+                              },
+                              "nome": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Produto não encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/metodos": {
+      "get": {
+        "operationId": "getMetodos",
+        "tags": [
+          "Catálogo"
+        ],
+        "summary": "Métodos de preparo",
+        "responses": {
+          "200": {
+            "description": "Métodos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Metodo"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/metodos/{slug}": {
+      "get": {
+        "operationId": "getMetodosSlug",
+        "tags": [
+          "Catálogo"
+        ],
+        "summary": "Método de preparo e o kit para fazer",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "v60"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Método",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Metodo"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kit": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/Produto"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Método não encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/carrinho/cotacao": {
+      "post": {
+        "operationId": "postCarrinhoCotacao",
+        "tags": [
+          "Checkout"
+        ],
+        "summary": "Calcula o total pelo preço do banco",
+        "description": "Itens com o mesmo slug são somados. Não reserva estoque.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "itens": {
+                    "minItems": 1,
+                    "maxItems": 20,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "slug": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 120
+                        },
+                        "quantidade": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 10
+                        }
+                      },
+                      "required": [
+                        "slug",
+                        "quantidade"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "itens"
+                ]
+              },
+              "example": {
+                "itens": [
+                  {
+                    "slug": "amostra-degustacao",
+                    "quantidade": 1
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cotação",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "itens": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "slug": {
+                            "type": "string"
+                          },
+                          "nome": {
+                            "type": "string"
+                          },
+                          "precoCentavos": {
+                            "type": "integer"
+                          },
+                          "pagamentoRealLiberado": {
+                            "type": "boolean"
+                          },
+                          "quantidade": {
+                            "type": "integer"
+                          },
+                          "subtotalCentavos": {
+                            "type": "integer"
+                          }
+                        }
+                      }
+                    },
+                    "totalCentavos": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Carrinho inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Produto não encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/pedidos": {
+      "post": {
+        "operationId": "postPedidos",
+        "tags": [
+          "Checkout"
+        ],
+        "summary": "Cria o pedido e reserva o estoque por 30 minutos",
+        "description": "O total é calculado no banco. Qualquer preço enviado no corpo é ignorado. A baixa de estoque é um `UPDATE produtos SET estoque = estoque - ? WHERE id = ? AND estoque >= ?` dentro da transação do pedido: quando várias compras disputam a última unidade, uma recebe 201 e as outras 409, sem estoque negativo. O cliente é criado no Asaas na primeira compra de cada CPF.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "nome": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 160
+                  },
+                  "email": {
+                    "type": "string",
+                    "maxLength": 200,
+                    "format": "email",
+                    "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+                  },
+                  "cpf": {
+                    "type": "string"
+                  },
+                  "itens": {
+                    "minItems": 1,
+                    "maxItems": 20,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "slug": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 120
+                        },
+                        "quantidade": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 10
+                        }
+                      },
+                      "required": [
+                        "slug",
+                        "quantidade"
+                      ]
+                    }
+                  },
+                  "aceiteAcademico": {
+                    "type": "boolean",
+                    "const": true
+                  }
+                },
+                "required": [
+                  "nome",
+                  "email",
+                  "cpf",
+                  "itens",
+                  "aceiteAcademico"
+                ]
+              },
+              "example": {
+                "nome": "Ana Souza",
+                "email": "ana@example.com",
+                "cpf": "529.982.247-25",
+                "itens": [
+                  {
+                    "slug": "amostra-degustacao",
+                    "quantidade": 1
+                  }
+                ],
+                "aceiteAcademico": true
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Pedido criado, pendente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PedidoCriado"
+                }
+              }
+            },
+            "headers": {
+              "Location": {
+                "description": "/api/pedidos/{id}",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dados inválidos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Produto não encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Estoque insuficiente, inclusive quando outra compra levou a última unidade no mesmo instante",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "O Asaas recusou o cadastro do cliente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/pedidos/{id}": {
+      "get": {
+        "operationId": "getPedidosId",
+        "tags": [
+          "Checkout"
+        ],
+        "summary": "Pedido, itens e pagamento atual",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pedido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Pedido"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Pedido não encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/pedidos/{id}/pagamentos": {
+      "post": {
+        "operationId": "postPedidosIdPagamentos",
+        "tags": [
+          "Checkout"
+        ],
+        "summary": "Paga o pedido por Pix, crédito ou débito",
+        "description": "Pix devolve o QR Code e o copia e cola. Crédito é aprovado ou recusado na hora: a recusa também volta como 201, com status `recusado` e o motivo em `motivoRecusa`. Débito devolve a invoiceUrl do Asaas, onde o comprador paga. Repetir a chamada com o mesmo método devolve a mesma cobrança: a linha do pedido fica travada durante a chamada ao Asaas e um índice único impede dois pagamentos pendentes no mesmo pedido. Trocar de método cancela a cobrança anterior.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "metodo": {
+                        "type": "string",
+                        "const": "pix"
+                      }
+                    },
+                    "required": [
+                      "metodo"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "metodo": {
+                        "type": "string",
+                        "const": "debito"
+                      }
+                    },
+                    "required": [
+                      "metodo"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "metodo": {
+                        "type": "string",
+                        "const": "credito"
+                      },
+                      "parcelas": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 21
+                      },
+                      "cartao": {
+                        "type": "object",
+                        "properties": {
+                          "nome": {
+                            "type": "string",
+                            "minLength": 3,
+                            "maxLength": 100
+                          },
+                          "numero": {
+                            "type": "string"
+                          },
+                          "mes": {
+                            "type": "string",
+                            "pattern": "^(0[1-9]|1[0-2])$"
+                          },
+                          "ano": {
+                            "type": "string",
+                            "pattern": "^\\d{4}$"
+                          },
+                          "cvv": {
+                            "type": "string",
+                            "pattern": "^\\d{3,4}$"
+                          }
+                        },
+                        "required": [
+                          "nome",
+                          "numero",
+                          "mes",
+                          "ano",
+                          "cvv"
+                        ]
+                      },
+                      "titular": {
+                        "type": "object",
+                        "properties": {
+                          "nome": {
+                            "type": "string",
+                            "minLength": 3,
+                            "maxLength": 160
+                          },
+                          "email": {
+                            "type": "string",
+                            "format": "email",
+                            "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+                          },
+                          "cpf": {
+                            "type": "string"
+                          },
+                          "cep": {
+                            "type": "string"
+                          },
+                          "numeroEndereco": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 10
+                          },
+                          "telefone": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "nome",
+                          "email",
+                          "cpf",
+                          "cep",
+                          "numeroEndereco",
+                          "telefone"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "metodo",
+                      "parcelas",
+                      "cartao",
+                      "titular"
+                    ]
+                  }
+                ]
+              },
+              "examples": {
+                "pix": {
+                  "value": {
+                    "metodo": "pix"
+                  }
+                },
+                "debito": {
+                  "value": {
+                    "metodo": "debito"
+                  }
+                },
+                "credito": {
+                  "value": {
+                    "metodo": "credito",
+                    "parcelas": 1,
+                    "cartao": {
+                      "nome": "ANA SOUZA",
+                      "numero": "4111111111111111",
+                      "mes": "12",
+                      "ano": "2030",
+                      "cvv": "123"
+                    },
+                    "titular": {
+                      "nome": "Ana Souza",
+                      "email": "ana@example.com",
+                      "cpf": "52998224725",
+                      "cep": "80010000",
+                      "numeroEndereco": "100",
+                      "telefone": "41999990000"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Pagamento criado ou o mesmo pagamento pendente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Pagamento"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dados inválidos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Produto sem pagamento real liberado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Pedido não encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Pedido não está mais aguardando pagamento",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "O Asaas recusou cancelar a cobrança anterior",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Asaas não respondeu, tente de novo",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/pedidos/{id}/status": {
+      "get": {
+        "operationId": "getPedidosIdStatus",
+        "tags": [
+          "Checkout"
+        ],
+        "summary": "Status atual do pedido",
+        "description": "Se o pedido ainda estiver pendente, consulta o Asaas antes de responder. Funciona mesmo sem o webhook. A tela do pedido chama esta rota a cada 3 segundos.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "$ref": "#/components/schemas/StatusPedido"
+                    },
+                    "expiraEm": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time"
+                    },
+                    "pagamento": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "status": {
+                          "$ref": "#/components/schemas/StatusPedido"
+                        },
+                        "metodo": {
+                          "enum": [
+                            "pix",
+                            "credito",
+                            "debito"
+                          ]
+                        },
+                        "motivoRecusa": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Pedido não encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "O Asaas recusou a consulta",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/webhooks/asaas": {
+      "post": {
+        "operationId": "postWebhooksAsaas",
+        "tags": [
+          "Asaas"
+        ],
+        "summary": "Recebe os eventos de cobrança do Asaas",
+        "description": "Exige o header asaas-access-token. O id de cada evento é gravado depois de processado: o mesmo evento chegando de novo devolve `repetido: true` e não muda nada. O status é lido do Asaas (GET /v3/payments/{id}), nunca do corpo, e passa pela máquina de estados, então um evento fora de ordem não faz o pedido voltar atrás. Evento sem `payment` ou de cobrança que não é desta loja responde 200 para não travar a fila do Asaas.",
+        "security": [
+          {
+            "asaas": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "event": {
+                    "type": "string"
+                  },
+                  "payment": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id"
+                    ]
+                  }
+                },
+                "required": [
+                  "id",
+                  "event"
+                ]
+              },
+              "example": {
+                "id": "evt_05b708f961d739ea7eba7e4db318f621",
+                "event": "PAYMENT_RECEIVED",
+                "payment": {
+                  "id": "pay_080225913252"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Recebido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "recebido": {
+                      "const": true
+                    },
+                    "repetido": {
+                      "type": "boolean",
+                      "description": "Só aparece quando o evento já tinha sido processado"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Falha ao consultar o Asaas. O evento não é gravado, e o Asaas reenvia."
+          }
+        }
+      }
+    },
+    "/api/cron/expirar": {
+      "get": {
+        "operationId": "getCronExpirar",
+        "tags": [
+          "Asaas"
+        ],
+        "summary": "Expira pedidos vencidos e devolve o estoque",
+        "description": "Chamado pelo Cron da Vercel. Um pedido pago no último minuto vale como pago, não expira.",
+        "security": [
+          {
+            "cron": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Quantos pedidos vencidos foram tratados",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "expirados": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sem o segredo do Cron",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/sessao": {
+      "get": {
+        "operationId": "getAdminSessao",
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Diz se a sessão de admin está aberta",
+        "responses": {
+          "200": {
+            "description": "Sessão",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "autenticado": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "postAdminSessao",
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Abre a sessão de admin",
+        "description": "Grava o cookie `admin` (HttpOnly, SameSite=Strict, 8 horas), assinado com HMAC.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "senha": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  }
+                },
+                "required": [
+                  "senha"
+                ]
+              },
+              "example": {
+                "senha": "..."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Sessão aberta",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "autenticado": {
+                      "const": true
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "Set-Cookie": {
+                "description": "Cookie admin da sessão",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Senha ausente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Senha errada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/pedidos": {
+      "get": {
+        "operationId": "getAdminPedidos",
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Últimos 50 pedidos, com pagamento e histórico de status",
+        "security": [
+          {
+            "admin": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pedidos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PedidoAdmin"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sem sessão",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/pedidos/{id}/estorno": {
+      "post": {
+        "operationId": "postAdminPedidosIdEstorno",
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Estorna o pagamento aprovado pelo Asaas",
+        "description": "Pede o estorno ao Asaas e leva o pedido a `estornado`, o que devolve o estoque.",
+        "security": [
+          {
+            "admin": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Estornado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "const": "estornado"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sem sessão",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Nada aprovado para estornar",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "O Asaas recusou o estorno; o motivo vem em detalhes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "admin": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "admin"
+      },
+      "asaas": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "asaas-access-token"
+      },
+      "cron": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    },
+    "schemas": {
+      "Erro": {
+        "type": "object",
+        "required": [
+          "erro"
+        ],
+        "properties": {
+          "erro": {
+            "type": "string"
+          },
+          "detalhes": {
+            "description": "Em 400, os campos inválidos e as mensagens de cada um. Em 502, a mensagem do Asaas."
+          }
+        }
+      },
+      "StatusPedido": {
+        "enum": [
+          "pendente",
+          "aprovado",
+          "recusado",
+          "expirado",
+          "cancelado",
+          "estornado",
+          "contestado"
+        ]
+      },
+      "Produto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "categoria": {
+            "enum": [
+              "cafes",
+              "equipamentos",
+              "acessorios"
+            ]
+          },
+          "nome": {
+            "type": "string"
+          },
+          "subtitulo": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "descricao": {
+            "type": "string"
+          },
+          "origem": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "produtor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "variedade": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "processo": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "altitudeM": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "notasSensoriais": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "peso": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "imagem": {
+            "type": "string"
+          },
+          "creditoImagem": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "precoCentavos": {
+            "type": "integer"
+          },
+          "estoque": {
+            "type": "integer"
+          },
+          "pagamentoRealLiberado": {
+            "type": "boolean"
+          },
+          "destaque": {
+            "type": "boolean"
+          }
+        }
+      },
+      "Metodo": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "nome": {
+            "type": "string"
+          },
+          "resumo": {
+            "type": "string"
+          },
+          "dificuldade": {
+            "enum": [
+              "facil",
+              "media",
+              "dificil"
+            ]
+          },
+          "tempoMin": {
+            "type": "integer"
+          },
+          "proporcao": {
+            "type": "string"
+          },
+          "moagem": {
+            "type": "string"
+          },
+          "temperaturaC": {
+            "type": "string"
+          },
+          "imagem": {
+            "type": "string"
+          },
+          "creditoImagem": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "PedidoCriado": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "totalCentavos": {
+            "type": "integer"
+          },
+          "expiraEm": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Pedido": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "$ref": "#/components/schemas/StatusPedido"
+          },
+          "nome": {
+            "type": "string"
+          },
+          "totalCentavos": {
+            "type": "integer"
+          },
+          "criadoEm": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expiraEm": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "itens": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "slug": {
+                  "type": "string"
+                },
+                "nome": {
+                  "type": "string"
+                },
+                "imagem": {
+                  "type": "string"
+                },
+                "quantidade": {
+                  "type": "integer"
+                },
+                "precoUnitarioCentavos": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "pagamento": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Pagamento"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "PedidoAdmin": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "$ref": "#/components/schemas/StatusPedido"
+          },
+          "nome": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "totalCentavos": {
+            "type": "integer"
+          },
+          "criadoEm": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "pagamento": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Pagamento"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "historico": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "de": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/StatusPedido"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "para": {
+                  "$ref": "#/components/schemas/StatusPedido"
+                },
+                "origem": {
+                  "enum": [
+                    "criacao",
+                    "consulta",
+                    "webhook",
+                    "admin",
+                    "expiracao"
+                  ]
+                },
+                "em": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          }
+        }
+      },
+      "Pagamento": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "pedidoId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "metodo": {
+            "enum": [
+              "pix",
+              "credito",
+              "debito"
+            ]
+          },
+          "status": {
+            "$ref": "#/components/schemas/StatusPedido"
+          },
+          "parcelas": {
+            "type": "integer"
+          },
+          "pix": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "payload": {
+                "type": "string",
+                "description": "Pix copia e cola"
+              },
+              "imagem": {
+                "type": "string",
+                "description": "QR Code em PNG, base64"
+              },
+              "expiraEm": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              }
+            }
+          },
+          "invoiceUrl": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Fatura do Asaas, usada no débito e no desafio 3DS"
+          },
+          "motivoRecusa": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    }
+  }
+}
