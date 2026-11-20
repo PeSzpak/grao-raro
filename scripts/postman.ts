@@ -35,6 +35,12 @@ const pastas: Record<string, Requisicao[]> = {
       testes: [...json(200), `pm.test("banco ok", () => pm.expect(pm.response.json().banco).to.eql("ok"));`],
     },
     {
+      nome: "Especificação OpenAPI",
+      metodo: "GET",
+      caminho: "/api/openapi.json",
+      testes: [...json(200), `pm.test("OpenAPI 3.1", () => pm.expect(pm.response.json().openapi).to.eql("3.1.0"));`],
+    },
+    {
       nome: "Listar produtos",
       metodo: "GET",
       caminho: "/api/produtos",
@@ -144,6 +150,14 @@ const pastas: Record<string, Requisicao[]> = {
       testes: [...json(404)],
     },
     {
+      // O sifão começa com 3 unidades. A baixa é condicional (estoque >= quantidade), então nada fica negativo.
+      nome: "Pedido acima do estoque",
+      metodo: "POST",
+      caminho: "/api/pedidos",
+      corpo: pedido({ itens: [{ slug: "sifao", quantidade: 10 }] }),
+      testes: [...json(409), `pm.test("explica o motivo", () => pm.expect(pm.response.json().erro).to.include("Estoque insuficiente"));`],
+    },
+    {
       nome: "Ver o pedido",
       metodo: "GET",
       caminho: "/api/pedidos/{{pedidoId}}",
@@ -239,6 +253,27 @@ const pastas: Record<string, Requisicao[]> = {
       testes: [...json(401)],
     },
     {
+      nome: "Webhook com token válido",
+      metodo: "POST",
+      caminho: "/api/webhooks/asaas",
+      headers: { "asaas-access-token": "{{asaasWebhookToken}}" },
+      corpo: { id: "{{eventoId}}", event: "PAYMENT_RECEIVED", payment: { id: "pay_postman" } },
+      antes: [
+        `if (!pm.environment.get("asaasWebhookToken")) pm.execution.skipRequest();`,
+        `pm.collectionVariables.set("eventoId", "evt_postman_" + Date.now());`,
+      ],
+      testes: [...json(200), `pm.test("recebido pela primeira vez", () => pm.expect(pm.response.json()).to.eql({ recebido: true }));`],
+    },
+    {
+      nome: "Mesmo evento de novo não muda nada",
+      metodo: "POST",
+      caminho: "/api/webhooks/asaas",
+      headers: { "asaas-access-token": "{{asaasWebhookToken}}" },
+      corpo: { id: "{{eventoId}}", event: "PAYMENT_RECEIVED", payment: { id: "pay_postman" } },
+      antes: [`if (!pm.environment.get("asaasWebhookToken")) pm.execution.skipRequest();`],
+      testes: [...json(200), `pm.test("marcado como repetido", () => pm.expect(pm.response.json().repetido).to.be.true);`],
+    },
+    {
       nome: "Cron sem o segredo",
       metodo: "GET",
       caminho: "/api/cron/expirar",
@@ -268,6 +303,13 @@ const pastas: Record<string, Requisicao[]> = {
       testes: [...json(200), `pm.test("cookie de sessão", () => pm.expect(pm.cookies.has("admin")).to.be.true);`],
     },
     {
+      nome: "Sessão aberta",
+      metodo: "GET",
+      caminho: "/api/admin/sessao",
+      antes: [`if (!pm.environment.get("adminSenha")) pm.execution.skipRequest();`],
+      testes: [...json(200), `pm.test("autenticado", () => pm.expect(pm.response.json().autenticado).to.be.true);`],
+    },
+    {
       nome: "Lista de pedidos",
       metodo: "GET",
       caminho: "/api/admin/pedidos",
@@ -292,7 +334,7 @@ const colecao = {
   info: {
     name: "Grão Raro",
     description:
-      "Testes da API do checkout. Rode a coleção inteira, na ordem. A requisição de Pix cria uma cobrança real na conta de produção do Asaas, que expira sozinha em 30 minutos sem cobrar nada. As requisições de admin só rodam se a variável adminSenha estiver preenchida no ambiente. Deixe catalogoLiberado igual ao ALLOW_REAL_CHECKOUT_ALL do servidor: com true, o teste do bloqueio é pulado.",
+      "Testes da API do checkout. Rode a coleção inteira, na ordem. A requisição de Pix cria uma cobrança real na conta de produção do Asaas, que expira sozinha em 30 minutos sem cobrar nada. As requisições de admin só rodam se a variável adminSenha estiver preenchida no ambiente, e as do webhook idempotente só com asaasWebhookToken (o mesmo ASAAS_WEBHOOK_TOKEN do servidor). Deixe catalogoLiberado igual ao ALLOW_REAL_CHECKOUT_ALL do servidor: com true, o teste do bloqueio é pulado.",
     schema: "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
   },
   variable: [
@@ -300,6 +342,7 @@ const colecao = {
     { key: "pedidoBloqueadoId", value: "" },
     { key: "pagamentoId", value: "" },
     { key: "precoAmostra", value: "" },
+    { key: "eventoId", value: "" },
   ],
   item: Object.entries(pastas).map(([pasta, requisicoes]) => ({
     name: pasta,
@@ -327,6 +370,7 @@ const ambiente = (nome: string, baseUrl: string) => ({
   values: [
     { key: "baseUrl", value: baseUrl, enabled: true },
     { key: "adminSenha", value: "", type: "secret", enabled: true },
+    { key: "asaasWebhookToken", value: "", type: "secret", enabled: true },
     { key: "catalogoLiberado", value: "true", enabled: true },
   ],
 });
