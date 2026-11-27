@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Grão Raro",
-    "description": "Testes da API do checkout. Rode a coleção inteira, na ordem. A requisição de Pix cria uma cobrança real na conta de produção do Asaas, que expira sozinha em 30 minutos sem cobrar nada. As requisições de admin só rodam se a variável adminSenha estiver preenchida no ambiente. Deixe catalogoLiberado igual ao ALLOW_REAL_CHECKOUT_ALL do servidor: com true, o teste do bloqueio é pulado.",
+    "description": "Testes da API do checkout. Rode a coleção inteira, na ordem. A requisição de Pix cria uma cobrança real na conta de produção do Asaas, que expira sozinha em 30 minutos sem cobrar nada. As requisições de admin só rodam se a variável adminSenha estiver preenchida no ambiente, e as do webhook idempotente só com asaasWebhookToken (o mesmo ASAAS_WEBHOOK_TOKEN do servidor). Deixe catalogoLiberado igual ao ALLOW_REAL_CHECKOUT_ALL do servidor: com true, o teste do bloqueio é pulado.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -19,6 +19,10 @@
     },
     {
       "key": "precoAmostra",
+      "value": ""
+    },
+    {
+      "key": "eventoId",
       "value": ""
     }
   ],
@@ -45,6 +49,27 @@
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/api/health"
+          }
+        },
+        {
+          "name": "Especificação OpenAPI",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"responde JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"OpenAPI 3.1\", () => pm.expect(pm.response.json().openapi).to.eql(\"3.1.0\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/openapi.json"
           }
         },
         {
@@ -389,6 +414,36 @@
           }
         },
         {
+          "name": "Pedido acima do estoque",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"responde JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"explica o motivo\", () => pm.expect(pm.response.json().erro).to.include(\"Estoque insuficiente\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/pedidos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Ana Souza\",\n  \"email\": \"ana@example.com\",\n  \"cpf\": \"529.982.247-25\",\n  \"itens\": [\n    {\n      \"slug\": \"sifao\",\n      \"quantidade\": 10\n    }\n  ],\n  \"aceiteAcademico\": true\n}"
+            }
+          }
+        },
+        {
           "name": "Ver o pedido",
           "event": [
             {
@@ -713,6 +768,93 @@
           }
         },
         {
+          "name": "Webhook com token válido",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.environment.get(\"asaasWebhookToken\")) pm.execution.skipRequest();",
+                  "pm.collectionVariables.set(\"eventoId\", \"evt_postman_\" + Date.now());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"responde JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"recebido pela primeira vez\", () => pm.expect(pm.response.json()).to.eql({ recebido: true }));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "asaas-access-token",
+                "value": "{{asaasWebhookToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/webhooks/asaas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"{{eventoId}}\",\n  \"event\": \"PAYMENT_RECEIVED\",\n  \"payment\": {\n    \"id\": \"pay_postman\"\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "Mesmo evento de novo não muda nada",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.environment.get(\"asaasWebhookToken\")) pm.execution.skipRequest();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"responde JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"marcado como repetido\", () => pm.expect(pm.response.json().repetido).to.be.true);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "asaas-access-token",
+                "value": "{{asaasWebhookToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/webhooks/asaas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"{{eventoId}}\",\n  \"event\": \"PAYMENT_RECEIVED\",\n  \"payment\": {\n    \"id\": \"pay_postman\"\n  }\n}"
+            }
+          }
+        },
+        {
           "name": "Cron sem o segredo",
           "event": [
             {
@@ -824,6 +966,36 @@
               "mode": "raw",
               "raw": "{\n  \"senha\": \"{{adminSenha}}\"\n}"
             }
+          }
+        },
+        {
+          "name": "Sessão aberta",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.environment.get(\"adminSenha\")) pm.execution.skipRequest();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"responde JSON\", () => pm.response.to.be.json);",
+                  "pm.test(\"autenticado\", () => pm.expect(pm.response.json().autenticado).to.be.true);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/admin/sessao"
           }
         },
         {
